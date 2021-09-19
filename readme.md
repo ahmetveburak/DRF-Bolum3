@@ -198,7 +198,10 @@ class ProfillerConfig(AppConfig):
     def ready(self):
         import profiller.signals
 ```
-```terminal
+
+Normalde, ileride hata alinmasininonune gecmek icin *profiller/__init__.py* dosyasi icerisine `default_app_config = "profiller.apps.ProfillerConfig"` satirini eklememiz gerekirdi. *settings.py* dosyasinda `INSTALLED_APPS` altinda uygulamamizi kaydettigimiz icin gerek kalmadi.
+
+
 ```terminal
 > python manage.py shell_plus
 > from django.contrib.auth.models import User
@@ -207,3 +210,46 @@ class ProfillerConfig(AppConfig):
 > user.save()
 testuser_2 __Created: True
 ```
+
+Sinyaller konusunu pekistirmek icin soyle bir hikaye daha yazalim. Bir kullanici sisteme kayit oldugunda ilk profil durum mesajini da otomatik olarak yayimlasin. 
+
+*profiller/signals.py*
+```python
+@receiver(post_save, sender=Profil)
+def create_ilk_durum(sender, instance, created, **kwargs):
+    if created:
+        ProfilDurum.objects.create(
+            user_profil=instance,
+            durum_mesaji=f"{instance.user.username} klube katildi",
+        )
+```
+Ikinci fonksiyonumuzda `sender` profil oldu, cunku biz instance argumani ile otomatik olarak `ProfilDurum` modeli icerisine ilgili profili vermek durumundayiz.
+
+# 3.4 Serializerlarimiz
+
+Ilk olarak profiller klasoru icerisinde api isimli bir klasor olusturacagiz. Permissions, api'ler ile ilgili view'lerimiz ve bu gibi scriptlerimizin tamamini bu klasor icinde toplayacagiz. *profiller/api* klasorunu olusturduktan sonra bu klasor icerisinde *serializers.py* dosyamizi olusturup ModelSerializer sinifini kullanarak hizli bir sekilde serializer'larimizi olusturacagiz.
+
+```python
+from profiller.models import Profil, ProfilDurum
+from rest_framework import serializers
+
+class ProfilSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField(read_only=True)
+    foto = serializers.ImageField(read_only=True)
+
+    class Meta:
+        model = Profil
+        fields = "__all__"
+
+class ProfilFotoSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Profil
+        fields = ("foto",)
+
+class ProfilDurumSerializer(serializers.ModelSerializer):
+    user_profil = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = ProfilDurum
+        fields = "__all__"
