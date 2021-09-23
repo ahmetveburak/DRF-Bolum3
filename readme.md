@@ -307,3 +307,191 @@ Yukaridaki dongude gerceklestirilen login islemi basarili olursa Django bize `re
 ## JSON Web TOkens (JWT)
 
 JWT daha yeni bir standart. Yapisi sebebiyle diger token sisteminden farkli olarak veri tabani dogrulamasi istememektedir. DRF ile olusturulan REST API servislerinde `django-rest-framework-simplejwt` paketi yuklenerek cok kolay bir sekilde uygulanabilir. Bu uygulamayi dersimizde islemeyi planlamiyoruz ancak bu seszonu tamamladigimizda rahatlikla kullanabilecek seviyeye geleceksiniz.
+
+# Django Rest Auth - Bolum 1
+Bu ve onumuzdeki dersimizde django-rest-auth paketini kullanarak endpointlerimiz uzerinde kayit ve authentication uygulamalarini yapmayi ogrenecegiz. iOS ve Android uygulamalari, kolaylikla backendimizle REST uzerinden iletisime gecip, uygulamalarimizin sagladigi hizmetleri kolaylikla kullanabilecekler.
+
+[Authentication Django REST Framework](https://www.django-rest-framework.org/api-guide/authentication/)
+REST dokumanini inceleyecek olursak ayni pagination ve permission konularinda oldugu gibi *settings.py* dosyasina ilgili satirlari ekleyerek authentication icin global policy olusturabiliriz. 
+
+*settings.py*
+```python
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ]
+}
+```
+
+Biz, projemizin *settings.py* dosyasinda BasicAuthentication yerine, TokenAuthentication'i ekledik. Ancak bir onceki derste konustugumuz gibi bu tokenler ve sessionlar veritabanina kaydedilecegi icin, bizim `INSTALLED_APPS` icerisine `rest_framework_authtoken` kaydini yapmamiz ve migrationlari olusturmamiz lazim.
+
+```python
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'django_extensions',
+    'rest_framework',
+    'rest_framework.authtoken',
+    'rest_auth', # pip install django-rest-auth
+    'profiller.apps.ProfillerConfig,
+```
+
+Migration'lari olusturduktan sonra server'imizi calistirip admin panelinde `AUTH TOKEN` uygulamasi altinda `Tokens` modelini gorebiliriz. Burada manual olarak kullanicilarimiza token verebiliriz ama tabi ki DRF bu islemleri arka planda bizim icin otomatik olarak gerceklestirecek. Bunun icin cok kullanisli olan bir paket yukleyecegiz. Bu paket bize registration ve login/logout icin gerekli endpointleri otokatik olarak verecek.
+
+```terminal
+> pip install django-rest-auth requests
+```
+
+Endpoint scriptlerimizi yazabilmemiz icin request kutuphanesini de yukledik. 
+
+Simdi registration ve login/logout islemleri icinurl'leri tanimlamamiz lazim. 
+*core/urls.py*
+```python
+from django.contrib import admin
+from django.url import include, path
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("api-auth/", include("rest_farmework.urls")),
+    path("api/rest-auth/", include("rest_auth.urls")),
+]
+
+from django.conf import settings
+from django.conf.urls.static import static
+
+if settings.DEBUG == True:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+```
+
+### Clientlarimiz (Istemcilerimiz)
+Amacimiz, sunucumuza istek gonderip kayit ve login islemlerini REST API uzerinden yapmak oldugu icin kendi client'imizi yazalim. bunun icin core ve proje klasorlerinin bulundugu dizinde *clients* adinda bir klasor olusturalim. Kendi sunucumuza istek gonderelim.
+*clients/token_auth_test1.py*
+```python
+import requests
+from pprint import pprint
+
+def client():
+    credentials = {
+        "username": "testuser",
+        "password": "testuser321.."
+    }
+
+    response = requests.post(
+        url = "http://127.0.0.1:8000/api/rest-auth/login/"
+        data = credentials        
+    )
+
+    print(f"Response Status Code: {response.status_code}")
+    response_data = response.json()
+    pprint(response_data)
+
+if __name__ == "__main__":
+    client()
+```
+
+```terminal
+> python token_auth_test1.py
+Response Status Code: 200
+{'key': '8t6612nei418198srq83d86akb8az'}
+```
+
+Boylece basarili sekilde login yapmis olduk. Artik (sunucumuz tarafindan veritabanina da kaydedilmis olan) bu token'i kullanara unsafe requestler yapip, sunucumuz dahilindeki endpointlere erisebiliriz. Eger admin sayfasina giris yaparsak `admin/Auth Tokens/Tokens` modeli altinda ilgili keyi goruntuleyebilirsiniz.
+
+### Ornek Bir View Uzerinden Authentication Sistemimizi Test Edelim
+
+*profiller/api/views.py*
+```python
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+from profiller.models import Profil
+from profiller.api.serializers import ProfilSerializer
+
+class ProfilList(generics.ListAPIView):
+    queryset = Profil.objects.all()
+    serializer_class = ProfilSerializer
+    permission_classes = (IsAuthenticated,)
+```
+
+*profiller/api/urls.py*
+```python
+from django.urls import path
+from profiller.api import views
+
+urlpatterns = [
+    path("kullanici-profilleri", views.ProfilList.as_view(), name="profiller"),
+]
+```
+
+*core/urls.py*
+```python
+...
+urlpatterns = [
+    ...
+    path("api/", include("profiller.api.urls")),
+]
+...
+```
+
+*clients/token_auth_test2.py*
+```python
+import requests
+from pprint import pprint
+
+def client():
+    response = requests.get(
+        url = "http://127.0.0.1:8000/api/rest-auth/login/"       
+    )
+
+    print(f"Status Code: {response.status_code}")
+    response_data = response.json()
+    pprint(response_data)
+
+if __name__ == "__main__":
+    client()
+```
+
+```terminal
+> python token_auth_test2.py
+Status Code: 401
+{'detail': 'Authentication credentials were not provided.'}
+```
+
+*clients/token_auth_test3.py*
+```python
+import requests
+from pprint import pprint
+
+def client():
+    token = "Token 8t6612nei418198srq83d86akb8az"
+
+    headers = {
+        "Authorization": token,
+    }
+    response = requests.get(
+        url = "http://127.0.0.1:8000/api/rest-auth/login/",
+        headers = headers,
+    )
+
+    print(f"Status Code: {response.status_code}")
+    response_data = response.json()
+    pprint(response_data)
+
+if __name__ == "__main__":
+    client()
+```
+
+```terminal
+> python token_auth_test2.py
+Status Code: 200
+[{'bio': 'Kurucu',
+  'foto': 'http://127.0.0.1:8000/media/profil_fotolari/2020/10/OI4FKU0.jpg',
+  'id': 1,
+  'sehir': 'Ankara',
+  'user', 'alperakbas'  
+}]
+```
