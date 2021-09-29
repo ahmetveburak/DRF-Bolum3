@@ -1,3 +1,5 @@
+    Notlar videolardan bakilarak dogrudan yazilmis, tekrardan calistirilmamistir. Bu sebeple bazi cikti ornekleri (token gibi) gelisi guzel yazilmis olabilir veya yazim yanlisi sebebiyle hata olusabilir. Hatalari duzeltmek veya metindeki Turkce karakterleri eklemek isterseniz pull request olusturabilirsiniz :)
+
 Bu seride, Django RestFramework'te daha ileri konulari ogrenecegiz. Bu tutorial sonunda asagidaki konulari ogrenmis olacagiz:
 - DRF'teki Temel Authentication Metodlari
 - Rest servisleri ile Kayit ve Authentication
