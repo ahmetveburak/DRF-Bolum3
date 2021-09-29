@@ -314,7 +314,7 @@ Bu ve onumuzdeki dersimizde django-rest-auth paketini kullanarak endpointlerimiz
 [Authentication Django REST Framework](https://www.django-rest-framework.org/api-guide/authentication/)
 REST dokumanini inceleyecek olursak ayni pagination ve permission konularinda oldugu gibi *settings.py* dosyasina ilgili satirlari ekleyerek authentication icin global policy olusturabiliriz. 
 
-*settings.py*
+*core/settings.py*
 ```python
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -326,7 +326,9 @@ REST_FRAMEWORK = {
 
 Biz, projemizin *settings.py* dosyasinda BasicAuthentication yerine, TokenAuthentication'i ekledik. Ancak bir onceki derste konustugumuz gibi bu tokenler ve sessionlar veritabanina kaydedilecegi icin, bizim `INSTALLED_APPS` icerisine `rest_framework_authtoken` kaydini yapmamiz ve migrationlari olusturmamiz lazim.
 
+*core/settings.py*
 ```python
+...
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -339,6 +341,8 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'rest_auth', # pip install django-rest-auth
     'profiller.apps.ProfillerConfig,
+
+...
 ```
 
 Migration'lari olusturduktan sonra server'imizi calistirip admin panelinde `AUTH TOKEN` uygulamasi altinda `Tokens` modelini gorebiliriz. Burada manual olarak kullanicilarimiza token verebiliriz ama tabi ki DRF bu islemleri arka planda bizim icin otomatik olarak gerceklestirecek. Bunun icin cok kullanisli olan bir paket yukleyecegiz. Bu paket bize registration ve login/logout icin gerekli endpointleri otokatik olarak verecek.
@@ -370,6 +374,7 @@ if settings.DEBUG == True:
 
 ### Clientlarimiz (Istemcilerimiz)
 Amacimiz, sunucumuza istek gonderip kayit ve login islemlerini REST API uzerinden yapmak oldugu icin kendi client'imizi yazalim. bunun icin core ve proje klasorlerinin bulundugu dizinde *clients* adinda bir klasor olusturalim. Kendi sunucumuza istek gonderelim.
+
 *clients/token_auth_test1.py*
 ```python
 import requests
@@ -494,4 +499,119 @@ Status Code: 200
   'sehir': 'Ankara',
   'user', 'alperakbas'  
 }]
+```
+
+# Django Rest Auth - Bolum 2 - Registration
+
+django-allauth kutuphanesi dokumantasyonu: [Installation - django-allauth](https://django-allauth.readthedocs.io/en/latest/installation.html)
+
+Olusturdugumuz REST API mimarisi ile kulanici kaydi da kabul edebilmemiz gerekiyor. Bunun icin biz hali hazirda varolan ve baya kuvvetli olan bir ucuncu parti python paketini kullancagiz. Boylelikle registration icin end-pointler olusturmamiza gerek kalmayacak, daha da onemlisi kayit islemleri icin gerekli tum islemleri arka planda halletmis olacagiz. Biz tabiki dersimizi sade ve anlasilabili kilabilmek maksadiyla basit bir ornek yapacagiz. Ancak django-allauth kutuphanesini kullanacakporjelerimize social login (yani facebook, google vb.) ozelligi de ekleyebiliriz. Sunu da blertmekte fayda var, django-allauth kutuphanesi restfarmework'e ozgu degil, klasik django uygulamalarinda da cok kullanilan bir kutuphane. Isleri de ciddi anlamda kolaylastirmakta.
+
+## 3.7.1 Ayarlamalar
+
+Ilk olarak python sanal ortamimizda `pip install django-allauth` komutu ile ilgili kutuphaneyi yuklememiz gerekiyor. Yukleme islemini takiben *setting.py* dosyasinda, INSTALLED_APPS kismina ilgili kayitlari yapmamiz gerekiyor. Sununda altini cizmemiz lazim, django-allauth kutuphanesi ile django-rest-auth kutuphanesi entegre bir sekilde calisiyor, yani birini kullanabilmemiz icin digerini de kullanmamiz gerekmekte. Bu ders notlarinin olusturuldugu tarih itibariyle.
+
+```terminal
+> pip install django-allauth
+```
+
+*core/settings.py*
+```python
+...
+
+INSTALLED_APPS = [
+    ...
+    'rest_auth',
+    ### registration end-pointlerimiz icin
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',    # social login icin gerekli, derslerimizde gormeyecegiz
+    'rest_auth.registration',   # bunu simdi yapiyoruz cunku rest_auth, bu uygulama icin all_auth'u kullaniyor
+    'django.contrib.sites',     # django ile gelen uygulama, bunu da kayit etmemiz gerekiyor
+    ###
+    'profiller.apps.ProfillerConfig,
+
+...
+```
+
+*settings.py* dosyasiyla ilgili islemlerimiz hala bitmedi, *settings.py* dosyasinin sonuna asagidaki degisiklikleri de eklememiz gerekiyor.
+
+*core/settings.py*
+```python
+SITE_ID = 1
+
+ACCOUNT_EMAIL_VERIFICATION = 'none' # kayit esnasinda email onayi istiyor muyuz?
+ACCOUNT_EMAIL_REQUIRED = (True,)    # kayit esnasinda kullanici email adresi vermeli mi?
+```
+
+Veri tabanimiza yeni tablolar da eklenecegi icin migrations'larimizi yapmamiz gerekiyor.
+```terminal
+> python manage.py makemigrations
+> python manage.py migrate
+```
+
+Migrate komutunu da calistirdiktan sonra sunucumuzu calistirirsak admin sayfasinda asagidaki yeni sayfalari (uygulama) ve modelleri gormemiz gerekiyor.
+
+- Accounts
+  - Email Addresses
+- Sites
+  - Sites
+- Social Accounts
+  - Social accounts
+  - Social application tokens
+  - Social applications
+
+Biz kayit islemlerini API end-pointler uzerinden yapacagimiz icin esasinda Sites, Social Account ile ilgilenmiyoruz. Ancak klasik django projelerinde bu yapilari kullanarak social login islemleri de yapabilirsiniz. Bunun icin sosyal medya uygulamasinda (or. Facebook) da gelistirici sayfalarina giderek bazi ek islemler yapmamiz gerekecek fakat dersimizin konusu degil.
+
+## 3.7.2 URL'lerimiz
+
+Simdi, end-point'lerimizi tam olarak bitirebilmek icin ana *urls.py* dosyamizda bazi eklemeler yapmamiz gerekecek.
+
+*core/urls.py*
+```python
+...
+urlpatterns = [
+    ...
+    path("api/rest-auth/registration/", include("rest_auth.registration.urls")),
+]
+...
+```
+
+*clients/registration_test.py*
+```python
+import requests
+from pprint import pprint
+
+def client():
+    credentials = {
+        "username": "rest_test_user",
+        "email": "test@test.co",
+        "password1": "testuser321..",
+        "password2": "testuser321..",
+    }
+
+    response = requests.post(
+        url = "http://127.0.0.1:8000/api/rest-auth/registration/"
+        data = credentials        
+    )
+
+    print(f"Response Status Code: {response.status_code}")
+    response_data = response.json()
+    pprint(response_data)
+
+if __name__ == "__main__":
+    client()
+```
+
+```terminal
+> python registration_test.py
+Response Status Code: 201
+{'key': '35ne4nei41u8198srq83d86akb8az'}
+```
+
+Ayni dosyanin ikinci kez calistirilmasi durumunda ise:
+```terminal
+> python registration_test.py
+Response Status Code: 400
+{'email': ['A user is already registered with this e-mail address.']}
 ```
