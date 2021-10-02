@@ -617,3 +617,109 @@ Ayni dosyanin ikinci kez calistirilmasi durumunda ise:
 Response Status Code: 400
 {'email': ['A user is already registered with this e-mail address.']}
 ```
+
+# 3.8 Viewset and Routers - Part 1
+
+Simdiye kadarki derslerimizde farkli stratejelerle cesitli viewler yazdik. APIView sinifindan gelerek ve bazi mixinler kullanarak generic viewlere kadar bircok farkli yol izledik. Her yeni konumuzda bircok proglamlama senaryosunda hemen hemen ayni islemler benzer mantikla yapilmakta dedik. Bu islemler neydi:
+- Listeleme
+- Detayli goruntuleme
+- Olusturma
+- Guncelleme
+- Silme
+
+Ornegin ikinci sezonda isledigimiz concret viewlerde bile (ki suana kadar gordugumuz en ust soyutlama ve en az kodlama gerektiren seviyeydi), listeleme, detayli goruntuleme, silme gibi islemler icin farkli viewler yazmamiz gerekti. Ikinci sezonda generic viewleri islerken yazdigimiz ilk basit concrete viewler asagidaki gibiydi:
+
+*kitaplar/api/views.py*
+```python
+from rest_framework.generics import GenericAPIView
+from rest_framework.mixins import ListModelMixin, CreateModelMixin
+from rest_framework import generics
+from kitaplar.api.serializers import KitapSerializer, YorumSerializer
+from kitaplar.models import Kitap
+
+
+
+class KitapListCreateAPIView(generics.ListCreateAPIView):
+    queryset = Kitap.objects.all()
+    serializer_class = KitapSerializer
+
+
+class KitapDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Kitap.objects.all()
+    serializer_class = KitapSerializer
+```
+
+Dedigimiz gibi benzer islemler benzer mantik siralamasinda yapildigi icin, isleri daha da hizlandirmak ve kolaylastirmak mantigindan hareketle DRF'i insaa eden gelistiriciler, ViewSet denilen bir konsepti kullanimimiza acmislar. Aslinda ViewSet, View kumeleri seklinde tercume edilebilir. Yani ozel olarak yukaridaki gibi birkac view'de yapmamiz gereken islemleri, tek bir view icerisinde halledebilmemiz icin gerekli bir konsept. Gelistirici arkadaslar bu kadariyla da yetinmemis, `routers` denilen konseptlerle de devamli olarak kullanmakzorunda oldugumuz URL'leri de otomasyon baglamislar. Yani en iyi yazilimci, tembel yazilimci diyebiliriz belki de.
+
+Ozet olarak, ornegin ViewSet'ler ile hem bir sorgu kumesindeki elemanlari listeleyebiliriz, hem de bu kumeden ya da ilgili modelden tek bir nesneyi goruntuleyebiliriz. ViewSet'ler de diger bir cesit ClassBasedView. Yalniz `.get()`, `.post()` gibi metodlar yerine `.list()`, `.create()` gibi aksiyona ve sonuca yonelik metodlar icermekteler. Zaten her zaman yaptigimiz gibi dersimizde kaynak kodlarina bir goz atacagiz. 
+
+Yukarida da bahsettigimiz gibi, ViewSet'ler genel olarak `router`'lar ile kullanilmaktalar. Boylelikle genel kullanimda olmasi gereken aksiyonlara yonelik uygun url path konfigurasyonlarini da otomatik olarak olusturmus oluruz.
+
+En son asagida verilen, profilleri listeledigimiz view'imizi yazmistik
+
+*profiller/api/views.py*
+```python
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+from profiller.models import Profil
+from profiller.api.serializers import ProfilSerializer
+
+class ProfilList(generics.ListAPIView):
+    queryset = Profil.objects.all()
+    serializer_class = ProfilSerializer
+    permission_classes = (IsAuthenticated,)
+```
+
+Concrete view'leri isledigimiz derslerimizde, bu viewlerin ne kadar guclu oldugunu zaten gormustuk. Yukaridaki view'imiz ile listeleme ve olusturma islemlerini hallettik, ancak detayli goruntuleme yani tek bir kullanici profili goruntuleme islemi icin normlade yukaridakine benzer bir tane daha view (`generics.RetrieveUpdateDestroyAPIView` ya da `generics.RetrieveAPIView` sinifindan tureterek) yazmamiz gerekiyor. Ite burada ViewSet'ler devreye giriyor. ViewSet'ler ile birbiriyle alakali bir cok islemi tek bir view'de toparlama sansimiz var. Boylelikle hem kod yukumuz azaliyor, hem de kodumuz daha okunabilir ve temiz olmus oluyor.
+
+Simdi yukarida yazdigimiz ProfilList view'imizi biraz degistirerek bu view'imize detail yani detayli goruntuleme yetenegini de kazandiralim.
+
+*profiller/api/views.py*
+```python
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+from profiller.models import Profil
+from profiller.api.serializers import ProfilSerializer
+from rest_framework.viewsets import ReadOnlyModelViewSet
+
+class ProfilList(ReadOnlyModelViewSet):
+    queryset = Profil.objects.all()
+    serializer_class = ProfilSerializer
+    permission_classes = (IsAuthenticated,)
+```
+
+Yukaridaki degisiklikleri yaparak tek bie view'e hem listeleme hem de detayli goruntuleme yetenegi kazandirmis olduk. Oncelikle `rest_framework.viewsets` yapisindan `ReadOnlyModelViewSet` sinifini cektik ve view'imizi bu siniftan turettik. View'imizin de ismini degistirdik. Baska herhangi bir degisiklik yapmadik. Boylelikle kodumuz cok daha kisa, okunabilir ve duzenli bir hale gelmis oldu. Bir cok kodu bedavaya getirmis olsak da `urls.py` dosyasinda bir dizi degisiklik yapmamiz gerekecek.
+
+*profiller/api/urls.py*
+```python
+from django.urls import path
+from profiller.api.views import ProfilViewSet
+# Hala, detayli goruntuleme ve listeleme icin iki ayri endpoint olusturmamiz gerekiyor.
+profil_list = ProfilViewSet.as_view({"get": "list"})
+profil_detay = ProfilViewSet.as_view({"get": "retrieve"})
+
+urlpatterns = [
+    path("kullanici-profilleri", profil_list, name="profiller"),
+    path("kullanici-profilleri/<int:pk>", profil_detay, name="profil-detay"),
+]
+```
+
+Ancak dersimizin girisinde de bahsettigimiz uzere, ViewSet yapisiyla birlikte gelen `router`yapisi, klasik bir sekilde hazirlamamiz gereken endpoint'lerimizi otomatik olarak hazirlamamizi saglamakta. Simdi routers yapisi ile url endpoint'lerimizi nasil otomatik olarak olusturabilecegimize bakalim.
+
+*profiller/api/urls.py*
+```python
+from django.urls import path, include
+from profiller.api.views import ProfilViewSet
+from rest_farmework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'profiller', ProfilViewSet)
+
+print("_________________")
+print(router.urls)
+urlpatterns = [
+    path("", include(router.urls)),
+]
+```
+Yukaridaki dosyada, yani urls.py dosyamizda, DefaultRouter sinifini kullanarak, bir router nesnesi olusturduk ve ProfilViewSet'imizi, profiller uzantisi ile nesnemiz icerisinde kaydettik. urlpatterns liste nesnesi icerisinde de router.urls yapisini dahil ettik. Boylece `http://127.0.0.1:8000/api/profiller` ve `http://127.0.0.1:8000/api/profiller/<int:pk>/` endpoint'lerini otomatik olarak olusturmus olduk. Hatta artik `http://127.0.0.1:8000/api/` adres ile API Root'umuz icin de bir sayfa `/` json api beslemesi olusturmus olduk.
+
