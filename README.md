@@ -618,7 +618,7 @@ Response Status Code: 400
 {'email': ['A user is already registered with this e-mail address.']}
 ```
 
-# 3.8 Viewset and Routers - Part 1
+# 3.8 ViewSets ve Routers - Part 1
 
 Simdiye kadarki derslerimizde farkli stratejelerle cesitli viewler yazdik. APIView sinifindan gelerek ve bazi mixinler kullanarak generic viewlere kadar bircok farkli yol izledik. Her yeni konumuzda bircok proglamlama senaryosunda hemen hemen ayni islemler benzer mantikla yapilmakta dedik. Bu islemler neydi:
 - Listeleme
@@ -723,7 +723,7 @@ urlpatterns = [
 ```
 Yukaridaki dosyada, yani urls.py dosyamizda, DefaultRouter sinifini kullanarak, bir router nesnesi olusturduk ve ProfilViewSet'imizi, profiller uzantisi ile nesnemiz icerisinde kaydettik. urlpatterns liste nesnesi icerisinde de router.urls yapisini dahil ettik. Boylece `http://127.0.0.1:8000/api/profiller` ve `http://127.0.0.1:8000/api/profiller/<int:pk>/` endpoint'lerini otomatik olarak olusturmus olduk. Hatta artik `http://127.0.0.1:8000/api/` adres ile API Root'umuz icin de bir sayfa `/` json api beslemesi olusturmus olduk.
 
-## 3.8.1 View'imize Guncelleme Yetenegi Kazandirma
+# 3.9 ViewSets ve Routers - Part 3
 Tabi biz `rest_framework.viewsets.ReadOnlyModelViewSet` yapisi uzersinden view sinifi  olusturdugumuz icin sadece bilgi goruntulume islemi yapabiliyoruz. Peki bu view'imiz icerisindeki queryset'e ait herhangi bir nesneyi update etmek istersek ne yapacagiz. Simdi ProfilViewSet'imizi buna gore tekrar duzenleyelim.
 
 Ancak burada dikkat etmemiz gereken birkac mantiksal konu var. Ornegin, biz bu ProfilViewSet sinifimiza create yani olusturma yetkisi vermeyecegiz, cunku olusturma islemini biz onceki videolarimizda, api uzerinden `rest_auth.registration` ile yapmistik. Dolayisiyla bizim update, list, retriew yetkilerini vermemiz lazim. Bunun icin mixin'leri kullanacagiz. Ayrica, permissions konusunda da gordugumuz gibi, bir permission (izin) sinifi da ekleyerek, sadece profil sahibinin kendi profilini guncelleyebilmesini saglamamiz lazim. Oncelikle profiller/api klasoru icerisinde *permissions.py* dosyasini olusturalim ve izin sinifimizi yazalim. 
@@ -753,13 +753,115 @@ from profiller.api.permissions import KendiProfiliYaDaReadOnly
 from rest_framework.viewsets import GenericViewSet
 from rest_framework import mixins
 
-class ProfilList(
+class ProfilViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     GenericViewSet,
-    ):
+):
     queryset = Profil.objects.all()
     serializer_class = ProfilSerializer
     permission_classes = (IsAuthenticated, KendiProfiliYaDaReadOnly)
 ```
+
+
+# 3.10 ViewSets ve Routers - Part 3
+
+Bu derste, profil durum mesajlarinin yayimlanabilmesi icin bir view yazacagiz. ModelViewSet kullanarak cok daha az kod ile durum mesaji olusturma islemini yapacagiz. Ancak, burada dikkat etmemiz gereken ince bir mantiksal nokta var:
+
+*profiller/models.py*
+```python
+class ProfilDurum(models.Model):
+    user_profil = models.ForeignKey(Profil, on_delete=models.CASCADE)
+    durum_mesaji = models.CharField(max_length=240)
+    yaratilma_zamani = models.DateTimeField(auto_now_add=True)
+    guncellenme_zamani = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "DurumMesajlari"
+    
+    def __str__(self):
+        return str(self.user_profil)
+```
+
+ProfilDurum modelimizi hatirlayalim. ProfilDurum modelimizden bir nesne olusturdugumuz zaman mutlaka `user_profil` altinda bir profil nesnesi vermemiz lazim. Bu sebeple onceki derslerimizde de gordugumuz gibi, `perform_create()` metodunu override etmemiz gerekecek. Ayrica, kullanicilarin sadece kendi durum mesajlarini guncelleyip, silebilmesi icin de bir permission sinifi daha yazmamiz gerekecek. Zaten *permissions.py* dosyamizi olusturmustuk. Oncelikle permission sinifimizi yazalim.
+
+*profiller/api/permissions.py*
+```python
+...
+
+class MesajSahibiYaDaReadOnly(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        return obj.user_profil ==  request.user.profil
+    
+```
+
+View'imizin son hali asagidaki gibi olmali:
+
+*profiller/api/views.py*
+```python
+from rest_framework.permissions import IsAuthenticated
+from profiller.models import Profil
+from profiller.api.serializers import ProfilSerializer
+from profiller.api.permissions import KendiProfiliYaDaReadOnly, MesajSahibiYaDaReadOnly
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
+from rest_framework import mixins
+
+class ProfilViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet,
+):
+    queryset = Profil.objects.all()
+    serializer_class = ProfilSerializer
+    permission_classes = (IsAuthenticated, KendiProfiliYaDaReadOnly)
+
+
+class ProfilDurumViewSet(ModelViewSet):
+    queryset = ProfilDurum.objects.all()
+    serializer_class = ProfilDurumSerializer
+    permission_classes = (IsAuthenticated, MesajSahibiYaDaReadOnly)
+
+    def perform_create(self, serializer):
+        user_profil = self.request.user.profil
+        serializer.save(user_profil=user_profil)
+```
+
+Yukarida goruldugu uzere ilgili `user_profil` alanini `perform_create()` metodunu override ederek cozduk.
+
+Eger `perform_create()` metodunda nasil bir islem yapildigini hatirlamiyorsak, yapmamiz gereken aslinda `ModelViewSet` kaynak kodunda, oradan da `mixins.CreateModelMixin` yapisinin koduna bakmak.
+
+Bu islemlerin ardindan, `urls.py` icerisinde daha onceden olusturdugumuz `router`'imiza bu yeni view'imizi kaydetmemiz gerekiyor. Boylelikle, endpoint'lerimizi de otomatik olarak olusmus olacak.
+
+*profiller/api/urls.py*
+```python
+from django.urls import path, include
+from profiller.api.views import ProfilViewSet, ProfilDurumViewSet
+from rest_farmework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'profiller', ProfilViewSet)
+router.register(r'durum', ProfilDurumViewSet)
+
+urlpatterns = [
+    path("", include(router.urls)),
+]
+```
+
+Artik API Root'umuza (http://127.0.0.1:8000/api/) gittigimizde asagidaki gibi bir goruntu almamiz lazim:
+
+```json
+{
+    "profiller": "http://127.0.0.1:8000/api/profiller/",
+    "durum": "http://127.0.0.1:8000/api/durum/"
+}
+```
+
+Goruldugu gibi durum olarak kaydettigimiz yeni router nesnemiz API Root'umuzda da goruluyor. Artik "http://127.0.0.1:8000/api/durum/" adresine istek yaptigimizda, ModelViewSet ile olusturdugumuz aksiyonlari kullanabiliriz.
+
+`ViewSet` ve `router` yapilari oldukca kuvvetli yapilar. Ancak, en ust soyutlama seviyesindeki yapilar. Dolayisiyla bazi aksiyonlar icin kaynak kodunu ve hatta ilgili dokumantasyonu incelememizde fayda var.
