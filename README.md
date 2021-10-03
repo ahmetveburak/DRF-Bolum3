@@ -723,3 +723,43 @@ urlpatterns = [
 ```
 Yukaridaki dosyada, yani urls.py dosyamizda, DefaultRouter sinifini kullanarak, bir router nesnesi olusturduk ve ProfilViewSet'imizi, profiller uzantisi ile nesnemiz icerisinde kaydettik. urlpatterns liste nesnesi icerisinde de router.urls yapisini dahil ettik. Boylece `http://127.0.0.1:8000/api/profiller` ve `http://127.0.0.1:8000/api/profiller/<int:pk>/` endpoint'lerini otomatik olarak olusturmus olduk. Hatta artik `http://127.0.0.1:8000/api/` adres ile API Root'umuz icin de bir sayfa `/` json api beslemesi olusturmus olduk.
 
+## 3.8.1 View'imize Guncelleme Yetenegi Kazandirma
+Tabi biz `rest_framework.viewsets.ReadOnlyModelViewSet` yapisi uzersinden view sinifi  olusturdugumuz icin sadece bilgi goruntulume islemi yapabiliyoruz. Peki bu view'imiz icerisindeki queryset'e ait herhangi bir nesneyi update etmek istersek ne yapacagiz. Simdi ProfilViewSet'imizi buna gore tekrar duzenleyelim.
+
+Ancak burada dikkat etmemiz gereken birkac mantiksal konu var. Ornegin, biz bu ProfilViewSet sinifimiza create yani olusturma yetkisi vermeyecegiz, cunku olusturma islemini biz onceki videolarimizda, api uzerinden `rest_auth.registration` ile yapmistik. Dolayisiyla bizim update, list, retriew yetkilerini vermemiz lazim. Bunun icin mixin'leri kullanacagiz. Ayrica, permissions konusunda da gordugumuz gibi, bir permission (izin) sinifi da ekleyerek, sadece profil sahibinin kendi profilini guncelleyebilmesini saglamamiz lazim. Oncelikle profiller/api klasoru icerisinde *permissions.py* dosyasini olusturalim ve izin sinifimizi yazalim. 
+
+*profiller/api/permissions.py*
+```python
+from rest_framework import permissions
+
+class KendiProfiliYaDaReadOnly(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        return obj.user ==  request.user
+    
+```
+
+Artik view'imizi guncellemeye haziriz:
+
+*profiller/api/views.py*
+```python
+from rest_framework.permissions import IsAuthenticated
+from profiller.models import Profil
+from profiller.api.serializers import ProfilSerializer
+from profiller.api.permissions import KendiProfiliYaDaReadOnly
+from rest_framework.viewsets import GenericViewSet
+from rest_framework import mixins
+
+class ProfilList(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet,
+    ):
+    queryset = Profil.objects.all()
+    serializer_class = ProfilSerializer
+    permission_classes = (IsAuthenticated, KendiProfiliYaDaReadOnly)
+```
