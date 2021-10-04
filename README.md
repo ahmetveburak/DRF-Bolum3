@@ -806,7 +806,7 @@ View'imizin son hali asagidaki gibi olmali:
 ```python
 from rest_framework.permissions import IsAuthenticated
 from profiller.models import Profil
-from profiller.api.serializers import ProfilSerializer
+from profiller.api.serializers import ProfilSerializer, ProfilDurumSerializer
 from profiller.api.permissions import KendiProfiliYaDaReadOnly, MesajSahibiYaDaReadOnly
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from rest_framework import mixins
@@ -865,3 +865,53 @@ Artik API Root'umuza (http://127.0.0.1:8000/api/) gittigimizde asagidaki gibi bi
 Goruldugu gibi durum olarak kaydettigimiz yeni router nesnemiz API Root'umuzda da goruluyor. Artik "http://127.0.0.1:8000/api/durum/" adresine istek yaptigimizda, ModelViewSet ile olusturdugumuz aksiyonlari kullanabiliriz.
 
 `ViewSet` ve `router` yapilari oldukca kuvvetli yapilar. Ancak, en ust soyutlama seviyesindeki yapilar. Dolayisiyla bazi aksiyonlar icin kaynak kodunu ve hatta ilgili dokumantasyonu incelememizde fayda var.
+
+# 3.11 ViewSets ve Routers - Part 4
+
+Bir cok gercek projede ise ViewSet'ler ve Concrete viewler birlikte kullanilmakda. Hatirlarsaniz bizim projemizde, profil fotosnunu guncellenmesi icin ayri bir serializer yazmistik. Simdi, kullanicilarin profil fotografini guncelleyebilmesi icin yeni bir view yazalim.
+
+*profiller/api/views.py*
+```python
+from rest_framewok import generics
+from profiller.api.serializers import ProfilSerializer, ProfilDurumSerializer, ProfilFotoSerializer
+
+...
+
+class ProfilFotoUpdateView(generics.UpdateAPIView):
+    # serializer'imizda sadece foto alanini dahil etmistik
+    # bu sebele bir update aksiyonunda sadece profil alani etkilenecek
+    serializer_class = ProfilFotoSerializer
+    permission_class = (IsAuthenticated,)
+    # izin yazmamiza gerek yok, cunku get_object ile kisitladik
+
+    def get_object(self):
+        # bize tek bir profil nesnesi lazim
+        # bu sebele queryset belirlemiyoruz ve GenericAPIView ile
+        # gelen get_object metodunu override ediyoruz
+        profil_nesnesi = self.request.user.profil
+        return profil_nesnesi
+```
+
+Yukarida *profiller/api/views.py* dosyasinin sadece ilgili kismi verilmistir. Daha onceden yazdigimiz ProfilFotoSerializer'imiz ile zaten sadece foto alanini dahil ettik. Bu nedenle, update aksiyonumuz sadece o alani yani foto alanini etkileyecek.
+
+Peki neden queryset belirlemedik? Cunku, biz tek bir profil nesnesi ile ilgileniyoruz. Bizim alacagimiz profil nesnesinin login olmus kullanicinin profili olmasi lazim. Biz bu islemi GenericAPIView ile gele `get_object()` metodunu icerisinde cozuyoruz. Bu sebeple hem queryset vermemize hem de fazladan permission yazmamiza gerek kalmadi.
+
+Artik *urls.py* dosyamiz icerisinde bir endpoint yazmamiz lazim. Ancak biz bu view'de ViewSet kullanmadik. Dolayisiyla `router`'a kayit yapamayiz. *profiller/api/urls.py* dosyamiz asagidaki gibi olmali:
+
+*profiller/api/urls.py*
+```python
+from django.urls import path, include
+from profiller.api.views import ProfilViewSet, ProfilDurumViewSet, ProfilFotoUpdateView
+from rest_farmework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'profiller', ProfilViewSet)
+router.register(r'durum', ProfilDurumViewSet)
+
+urlpatterns = [
+    path("", include(router.urls)),
+    path("profil_foto/", ProfilFotoUpdateView.as_view(), name="foto-update"),
+]
+```
+
+Simdi http://127.0.0.1:8000/api/profil_foto/ adresine istek yaparsak login olmus kullanicinin profil fotografini degistirebiliriz.
