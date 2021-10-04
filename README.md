@@ -1,4 +1,28 @@
-    Notlar videolardan bakilarak dogrudan yazilmis, tekrardan calistirilmamistir. Bu sebeple bazi cikti ornekleri (token gibi) gelisi guzel yazilmis olabilir veya yazim yanlisi sebebiyle hata olusabilir. Hatalari duzeltmek veya metindeki Turkce karakterleri eklemek isterseniz pull request olusturabilirsiniz :)
+    Notlar videolardan bakilarak dogrudan yazilmis, tekrardan calistirilmamistir. Bu sebeple bazi cikti ornekleri (token gibi) gelisi guzel yazilmis olabilir veya yazim yanlisi sebebiyle hata olusabilir. Hatalari duzeltmek, metindeki Turkce karakterleri veya baska bir duzenleme yapmak isterseniz pull request olusturabilirsiniz :)
+
+
+- [3.1 Proje Kurulumu ve UserProfiles API](#31-proje-kurulumu-ve-userprofiles-api)
+  - [3.1.1 Proje Kurulumu](#311-proje-kurulumu)
+  - [3.1.2 Modellerimiz](#312-modellerimiz)
+- [3.3 Sinyaller - Django Signals](#33-sinyaller---django-signals)
+- [3.4 Serializerlarimiz](#34-serializerlarimiz)
+  - [Aciklamalar:](#aciklamalar)
+  - [Basic Authentication](#basic-authentication)
+  - [Token Authentication](#token-authentication)
+  - [DRF - Session Authentication](#drf---session-authentication)
+    - [Nasil Calisir?](#nasil-calisir)
+  - [JSON Web TOkens (JWT)](#json-web-tokens-jwt)
+- [Django Rest Auth - Bolum 1](#django-rest-auth---bolum-1)
+    - [Clientlarimiz (Istemcilerimiz)](#clientlarimiz-istemcilerimiz)
+    - [Ornek Bir View Uzerinden Authentication Sistemimizi Test Edelim](#ornek-bir-view-uzerinden-authentication-sistemimizi-test-edelim)
+- [Django Rest Auth - Bolum 2 - Registration](#django-rest-auth---bolum-2---registration)
+  - [3.7.1 Ayarlamalar](#371-ayarlamalar)
+  - [3.7.2 URL'lerimiz](#372-urllerimiz)
+- [3.8 ViewSets ve Routers - Part 1](#38-viewsets-ve-routers---part-1)
+- [3.9 ViewSets ve Routers - Part 3](#39-viewsets-ve-routers---part-3)
+- [3.10 ViewSets ve Routers - Part 3](#310-viewsets-ve-routers---part-3)
+- [3.11 ViewSets ve Routers - Part 4](#311-viewsets-ve-routers---part-4)
+- [3.12 DRF'de Filtreleme](#312-drfde-filtreleme)
 
 Bu seride, Django RestFramework'te daha ileri konulari ogrenecegiz. Bu tutorial sonunda asagidaki konulari ogrenmis olacagiz:
 - DRF'teki Temel Authentication Metodlari
@@ -407,7 +431,7 @@ Response Status Code: 200
 {'key': '8t6612nei418198srq83d86akb8az'}
 ```
 
-Boylece basarili sekilde login yapmis olduk. Artik (sunucumuz tarafindan veritabanina da kaydedilmis olan) bu token'i kullanara unsafe requestler yapip, sunucumuz dahilindeki endpointlere erisebiliriz. Eger admin sayfasina giris yaparsak `admin/Auth Tokens/Tokens` modeli altinda ilgili keyi goruntuleyebilirsiniz.
+Boylece basarili sekilde login yapmis olduk. Artik (sunucumuz tarafindan veritabanina da kaydedilmis olan) bu token'i kullanarak unsafe requestler yapip, sunucumuz dahilindeki endpointlere erisebiliriz. Eger admin sayfasina giris yaparsak `admin/Auth Tokens/Tokens` modeli altinda ilgili keyi goruntuleyebilirsiniz.
 
 ### Ornek Bir View Uzerinden Authentication Sistemimizi Test Edelim
 
@@ -511,7 +535,7 @@ Olusturdugumuz REST API mimarisi ile kulanici kaydi da kabul edebilmemiz gerekiy
 
 ## 3.7.1 Ayarlamalar
 
-Ilk olarak python sanal ortamimizda `pip install django-allauth` komutu ile ilgili kutuphaneyi yuklememiz gerekiyor. Yukleme islemini takiben *setting.py* dosyasinda, INSTALLED_APPS kismina ilgili kayitlari yapmamiz gerekiyor. Sununda altini cizmemiz lazim, django-allauth kutuphanesi ile django-rest-auth kutuphanesi entegre bir sekilde calisiyor, yani birini kullanabilmemiz icin digerini de kullanmamiz gerekmekte. Bu ders notlarinin olusturuldugu tarih itibariyle.
+Ilk olarak python sanal ortamimizda `pip install django-allauth` komutu ile ilgili kutuphaneyi yuklememiz gerekiyor. Yukleme islemini takiben *settings.py* dosyasinda, INSTALLED_APPS kismina ilgili kayitlari yapmamiz gerekiyor. Sununda altini cizmemiz lazim, django-allauth kutuphanesi ile django-rest-auth kutuphanesi entegre bir sekilde calisiyor, yani birini kullanabilmemiz icin digerini de kullanmamiz gerekmekte. Bu ders notlarinin olusturuldugu tarih itibariyle.
 
 ```terminal
 > pip install django-allauth
@@ -682,7 +706,7 @@ from profiller.models import Profil
 from profiller.api.serializers import ProfilSerializer
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-class ProfilList(ReadOnlyModelViewSet):
+class ProfilViewSet(ReadOnlyModelViewSet):
     queryset = Profil.objects.all()
     serializer_class = ProfilSerializer
     permission_classes = (IsAuthenticated,)
@@ -862,7 +886,7 @@ Artik API Root'umuza (http://127.0.0.1:8000/api/) gittigimizde asagidaki gibi bi
 }
 ```
 
-Goruldugu gibi durum olarak kaydettigimiz yeni router nesnemiz API Root'umuzda da goruluyor. Artik "http://127.0.0.1:8000/api/durum/" adresine istek yaptigimizda, ModelViewSet ile olusturdugumuz aksiyonlari kullanabiliriz.
+Goruldugu gibi durum olarak kaydettigimiz yeni router nesnemiz API Root'umuzda da goruluyor. Artik http://127.0.0.1:8000/api/durum/ adresine istek yaptigimizda, ModelViewSet ile olusturdugumuz aksiyonlari kullanabiliriz.
 
 `ViewSet` ve `router` yapilari oldukca kuvvetli yapilar. Ancak, en ust soyutlama seviyesindeki yapilar. Dolayisiyla bazi aksiyonlar icin kaynak kodunu ve hatta ilgili dokumantasyonu incelememizde fayda var.
 
@@ -914,4 +938,78 @@ urlpatterns = [
 ]
 ```
 
-Simdi http://127.0.0.1:8000/api/profil_foto/ adresine istek yaparsak login olmus kullanicinin profil fotografini degistirebiliriz.
+Simdi http://127.0.0.1:8000/api/profil_foto/ adresine istek yaparsak login olmus kullanicinin profil fotografini degistirebiliriz.  
+
+# 3.12 DRF'de Filtreleme
+
+Su ana kadar kullandigimiz view'lerimizde, hep tam bir sorgu kumesi (queryset) kullandik. Ancak bazi durumlarda, hatta cogu durumda bir sorgu kumesindeki belirli bir ya da birden fazla ogeyi cekmek isteyebiliriz. Bunu da onceden belirlenmis bazi kriterlere baglamak isteyebiliriz.
+
+Bu dersimizde, `get_queryset()` metodunu ve DRF filtreleme mantigini kullanarak ve kisisellestirerek, REST API'lerimizi daha da gelistirecegiz.
+
+ProfilDurumViewSet sinifimizi modifiye ederek baslayalim. Hikayemizde, durum endpoint'imize bir username ekleyerek istenen kullanicinin durum mesajini/mesajlarini goruntuleyebilmek olsun.
+
+*profiller/api/views.py* `ProfilDurumViewSet`'imiz asagidaki gibi olmali:
+```python
+class ProfilDurumViewSet(ModelViewSet):
+    serializer_class = ProfilDurumSerializer
+    permission_classes = (IsAuthenticated, MesajSahibiYaDaReadOnly)
+
+    def get_queryset(self):
+        queryset = ProfilDurum.objects.all() # filtreleme yapmak icin queryset burada aliyoruz
+        username = self.request.query_params.get("username") # url'imizde belirleyecegimiz username parametresi
+
+        if username:
+            queryset = queryset.filter(user_profil__user__username=username)
+        
+        return queryset
+
+    def perform_create(self, serializer):
+        user_profil = self.request.user.profil
+        serializer.save(user_profil=user_profil)
+```
+
+*profiller/api/urls.py*
+```python
+from django.urls import path, include
+from profiller.api.views import ProfilViewSet, ProfilDurumViewSet, ProfilFotoUpdateView
+from rest_farmework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'profiller', ProfilViewSet)
+router.register(r'durum', ProfilDurumViewSet, basename="durum")
+
+urlpatterns = [
+    path("", include(router.urls)),
+    path("profil_foto/", ProfilFotoUpdateView.as_view(), name="foto-update"),
+]
+```
+
+Yukaridaki gibi `basename`'i acik bir sekilde belirtmez isek "`AssertionError: 'basename' argument not specified, and could not automatically determine the name from the viewset, as it does not have a '.queryset'` attribute" hatasini alacagiz. Cunku, viewset'imizin islemi tamamlamasi icin bir queryset degiskenine ihtiyacimiz var ve biz queryset'i dolayli yoldan, yani `get_queryset()` metodu ile olusturuyoruz.
+
+Boylelikle http://127.0.0.1:8000/api/durum/?username=deneme_kullanicisi seklinde bir url ile deneme_kullanicisi'na ait tum durum mesajlarini goruntuleyebiliriz.
+
+Peki model uzerinde, ornegin http://127.0.0.1:8000/api/profiller/?search=izmir seklinde bir url vasitasi ile ilgili modele ait istenilen alanlarda arama/filtreleme yapmak isteksek? Simdi bu islemi, ProfilViewSet sinifimiz uzerinden filter_backends ve DRF ile hazirda gelen SearchFilter yapisini kullanarak yapalim.
+
+*profiller/api/views.py*
+```python
+...
+from rest_framework.filters import SearchFilter
+
+class ProfilViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet,
+):
+    queryset = Profil.objects.all()
+    serializer_class = ProfilSerializer
+    permission_classes = (IsAuthenticated, KendiProfiliYaDaReadOnly)
+    filter_backends = (SearchFilter,)  # birden fazla arama filtresi dahil edilebilir
+    search_fields = ("sehir",)  # profil modeline ait arama yapilmasi istenen field'lar
+```
+
+Yukaridaki islemleri, dogru bir sekilde yaparsak artik http://127.0.0.1:8000/api/profiller/?search=Ankara benzeri endpoint'ler uzerinden arama/filtreleme islemlerini gerceklestirebiliriz. Eger, browsable api sayfamiza dikkat ederseniz, artik html ara yuzumuzde *Options* butonu yaninda bir *Filter* butonumuz, dolayisiyla filtreleme icin form yapimiz otomatik olarak olustu. Ayrica `?search=ank` gibi parcali aramalari da desteklemekte.
+
+    SearhFilter'a ait diger arama yontemleri icin [DRF SearchFilter](https://www.django-rest-framework.org/api-guide/filtering/#searchfilter)  
+
+Burada en onemli nokta, DRF ile farkli filter_backend'ler geldigi (iki adet) ve hali hazirda varolan bazi cok guclu paketlerle yeni filtreleme backend'lerini kolaylikla ekleyebilecegimizi bilmemiz. Ayrica, *settings.py* dosyasinda REST_FRAMEWORK ayarlari icerisine DEFAULT_FILTER_BACKENDS ekleyerek default filtreleme seceneklerini de belirleyebiliriz. Ancak en maktikli kullanim sekli view bazinda filtreleme belirlemek. Boylece programimizin davranislarini daha iyi kontrol altinda tutabiliriz.
