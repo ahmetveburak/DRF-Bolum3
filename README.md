@@ -1,3 +1,5 @@
+# [Django Restframework Bölüm-3](https://www.youtube.com/watch?v=dhW12_mE-eY&list=PLtf2C1UGjgPBnN2YJMwYP2NAN0mgkGGP5&index=1)
+
     Notlar tekrar amacli videolardan bakilarak dogrudan yazilmis,
     tekrardan calistirilmamistir. Bu sebeple bazi cikti ornekleri
     (token gibi) gelisi guzel yazilmis olabilir veya yazim yanlisi
@@ -6,6 +8,7 @@
     pull request olusturabilirsiniz :)
 
 
+- [Django Restframework Bölüm-3](#django-restframework-bölüm-3)
 - [3.1 Proje Kurulumu ve UserProfiles API](#31-proje-kurulumu-ve-userprofiles-api)
   - [3.1.1 Proje Kurulumu](#311-proje-kurulumu)
   - [3.1.2 Modellerimiz](#312-modellerimiz)
