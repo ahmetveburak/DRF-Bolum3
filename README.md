@@ -1,4 +1,9 @@
-    Notlar videolardan bakilarak dogrudan yazilmis, tekrardan calistirilmamistir. Bu sebeple bazi cikti ornekleri (token gibi) gelisi guzel yazilmis olabilir veya yazim yanlisi sebebiyle hata olusabilir. Hatalari duzeltmek, metindeki Turkce karakterleri veya baska bir duzenleme yapmak isterseniz pull request olusturabilirsiniz :)
+    Notlar tekrar amacli videolardan bakilarak dogrudan yazilmis,
+    tekrardan calistirilmamistir. Bu sebeple bazi cikti ornekleri
+    (token gibi) gelisi guzel yazilmis olabilir veya yazim yanlisi
+    sebebiyle hata olusabilir. Hatalari duzeltmek, metindeki Turkce
+    karakterleri veya baska bir duzenleme yapmak isterseniz
+    pull request olusturabilirsiniz :)
 
 
 - [3.1 Proje Kurulumu ve UserProfiles API](#31-proje-kurulumu-ve-userprofiles-api)
@@ -1010,6 +1015,7 @@ class ProfilViewSet(
 
 Yukaridaki islemleri, dogru bir sekilde yaparsak artik http://127.0.0.1:8000/api/profiller/?search=Ankara benzeri endpoint'ler uzerinden arama/filtreleme islemlerini gerceklestirebiliriz. Eger, browsable api sayfamiza dikkat ederseniz, artik html ara yuzumuzde *Options* butonu yaninda bir *Filter* butonumuz, dolayisiyla filtreleme icin form yapimiz otomatik olarak olustu. Ayrica `?search=ank` gibi parcali aramalari da desteklemekte.
 
-    SearhFilter'a ait diger arama yontemleri icin [DRF SearchFilter](https://www.django-rest-framework.org/api-guide/filtering/#searchfilter)  
+    SearhFilter'a ait diger arama yontemleri icin
+    https://www.django-rest-framework.org/api-guide/filtering/#searchfilter
 
 Burada en onemli nokta, DRF ile farkli filter_backend'ler geldigi (iki adet) ve hali hazirda varolan bazi cok guclu paketlerle yeni filtreleme backend'lerini kolaylikla ekleyebilecegimizi bilmemiz. Ayrica, *settings.py* dosyasinda REST_FRAMEWORK ayarlari icerisine DEFAULT_FILTER_BACKENDS ekleyerek default filtreleme seceneklerini de belirleyebiliriz. Ancak en maktikli kullanim sekli view bazinda filtreleme belirlemek. Boylece programimizin davranislarini daha iyi kontrol altinda tutabiliriz.
